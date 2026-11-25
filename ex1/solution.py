@@ -1,24 +1,37 @@
-'''case 1:
-(a) x := x + 1
-(b) y := y + 2z
-(c) x := 3x + z
-(d) w := w + v
-(e) z := y - z
-(f) v := x + v
-A = {a, b, c, d, e, f}
-w = acdcfbbe
-'''
 PATH="case0.txt"
+OUT="graph.dot"
 ALPHABET = "abcdefghijklmnopqrstuwvxyz"
 
-productions={}
+#productions have to be in the format: (a) x := x + 1
+#production name has to be one char, and it has to be the second char in the line
+#changed variable has to be onr char, and be the fourth char in the line
+#variables have to be single chars, and start after 8th char in the line
+#production names in A have to start after the second char
+#productions in w have to start after 4th char
+
+def dfs(graph, i, j):
+    n = len(graph)
+    if i>=n or j >=n:
+        raise IndexError(f"{i} or {j} does not belong to the graph")
+    if i == j:
+        raise IndexError("i and j cannot be the same vertex")
+    visited = [False]*n
+    to_visit=[i]
+    while(len(to_visit)):
+        s = to_visit.pop()
+        if(not visited[s]):
+            visited[s]= True
+            if s == j:
+                return True
+            for v in graph[s]:
+                to_visit.append(v)
+    return False
+
+
+productions={} #name: (changed, [used])
 D=[]
 I=[]
-dependents={}
-
-#{"a": (x, [x]), "b": (y, [y, z]), ...} <- "production": (changed, [used])
-#ZAŁOŻENIA: produkcje w formacie (a) x := x + 1 <- nazwa busi być 2. znakiem, zmieniana zmienna musi być 4. znakiem
-#nazwy produkcj i zmienne muszą być pojedyńczymi literami
+dependents={} #name: [other dependent productions]
 
 with open(PATH) as f:
     for x in f:
@@ -30,7 +43,7 @@ with open(PATH) as f:
         elif x[0]=='A':
             A=[prod for prod in x[2::] if prod in ALPHABET]
         elif x[0]=='w':
-            w=x[4::]
+            w=x[4::].strip()
         else:
             raise SyntaxError(f"{x[0]} is not a valid starting character")
 
@@ -87,3 +100,28 @@ while count>0:
 
 print(f"FNF: {fnf}")    
 
+#GRAPH
+graph = {}
+
+for i in range(len(w)): #creating a full graph
+    graph[i] = []
+    for j in range(0, i):
+        if (w[j], w[i]) in D:
+            graph[j].append(i)
+
+for i in range(len(w)):
+    length = len(graph[i])
+    for j in range(length-1, -1, -1):#len(graph) can change, so the connections have to be checked from the back
+        s = graph[i][j] #j-th connection from i
+        graph[i].pop(j)
+        if not dfs(graph, i, s): #if s cannot be visited from i the connection has to be in the graph
+            graph[i].insert(j, s)
+
+with open(OUT, "w") as out: #writing the graph to a file in a .dot format
+    out.write("digraph g{\n")
+    for i in graph.items():
+        for j in i[1]:
+            out.write(f"{i[0]} -> {j}\n")
+    for i in range(len(w)):
+        out.write(f'{i}[label="{w[i]}"]\n')
+    out.write("}")
